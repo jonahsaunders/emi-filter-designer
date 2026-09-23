@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EMI Filter Designer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M5 20c3 0 3-8 6-8s3 8 6 8 3-8 6-8 3 8 4 8' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" class="logo" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2563eb"/><path d="M5 20c3 0 3-8 6-8s3 8 6 8 3-8 6-8 3 8 4 8" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <span>EMI Filter Designer</span>
+  </div>
+  <div class="seg" id="modeSeg" role="tablist" aria-label="Input type">
+    <button data-mode="dc" class="on">DC input</button>
+    <button data-mode="ac">AC mains</button>
+  </div>
+  <div class="spacer"></div>
+  <span id="busy" class="busy" hidden><span class="spin"></span><span id="busyText">Working…</span></span>
+  <button id="btnDesign" class="btn primary" title="Synthesize a new filter from the parameters (Ctrl+Enter)">Design filter</button>
+  <button id="btnSim" class="btn" title="Re-simulate the current filter">Re-simulate</button>
+  <div class="menu">
+    <button id="btnExport" class="btn">Export ▾</button>
+    <div class="menu-pop" id="exportMenu" hidden>
+      <button data-exp="report">Design report (HTML)</button>
+      <button data-exp="bom">BOM (CSV)</button>
+      <button data-exp="spice">SPICE netlist (.cir)</button>
+      <hr>
+      <button data-exp="save">Save project…</button>
+      <button data-exp="open">Open project…</button>
+    </div>
+  </div>
+  <button id="btnSettings" class="btn icon" title="Distributor API keys">
+    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.5 11a7.7 7.7 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <aside class="side" id="side"></aside>
+
+  <main class="main">
+    <section class="cards" id="cards"></section>
+    <div id="banner" class="banner" hidden></div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="schematic" class="on">Schematic</button>
+      <button data-tab="emissions">Emissions</button>
+      <button data-tab="atten">Attenuation</button>
+      <button data-tab="stab">Stability</button>
+      <button data-tab="bom">Components &amp; parts</button>
+      <button data-tab="spice">SPICE</button>
+      <button data-tab="log">Design log</button>
+    </nav>
+    <div class="panels">
+      <section class="panel on" id="p-schematic">
+        <div class="schem-wrap"><div id="schematic"></div></div>
+        <div id="schemNotes" class="notes"></div>
+      </section>
+      <section class="panel" id="p-emissions">
+        <div class="chart-head">
+          <div><h3>Conducted emissions at the artificial network</h3><p class="muted" id="emiSub"></p></div>
+          <div class="legend" id="emiLegend"></div>
+        </div>
+        <div class="chart" id="chEmi"></div>
+      </section>
+      <section class="panel" id="p-atten">
+        <div class="chart-head">
+          <div><h3>Filter attenuation</h3><p class="muted">In-circuit: reduction of the LISN voltage versus no filter (with the real LISN and converter impedances). 50 Ω/50 Ω: CISPR 17-style insertion loss.</p></div>
+          <div class="legend" id="attLegend"></div>
+        </div>
+        <div class="chart" id="chAtt"></div>
+      </section>
+      <section class="panel" id="p-stab">
+        <div class="chart-head">
+          <div><h3>Input-filter stability (Middlebrook)</h3><p class="muted" id="stabSub"></p></div>
+          <div class="legend" id="stabLegend"></div>
+        </div>
+        <div class="chart" id="chStab"></div>
+      </section>
+      <section class="panel" id="p-bom">
+        <div class="bom-head">
+          <div><h3>Components &amp; parts</h3><p class="muted">Edit values or parasitics and the filter is re-simulated. Use <b>Find parts</b> to pick real components from the built-in library, Mouser or DigiKey.</p></div>
+          <div class="bom-actions"><span id="bomCost" class="cost"></span><button class="btn" id="btnBomCsv">BOM CSV</button></div>
+        </div>
+        <div class="table-wrap"><table class="bom" id="bomTable"></table></div>
+      </section>
+      <section class="panel" id="p-spice">
+        <div class="bom-head">
+          <div><h3>SPICE netlist</h3><p class="muted">Complete test set-up (LISNs, filter with parasitics, converter noise sources) for LTspice or ngspice.</p></div>
+          <div class="bom-actions"><button class="btn" id="btnCopySpice">Copy</button><button class="btn" id="btnSaveSpice">Save .cir</button></div>
+        </div>
+        <pre class="code" id="spiceText"></pre>
+      </section>
+      <section class="panel" id="p-log">
+        <h3>Design log</h3>
+        <ul class="log" id="logList"></ul>
+        <h3>Operating points (noise model)</h3>
+        <div class="table-wrap"><table class="bom small" id="opsTable"></table></div>
+        <h3>Model notes</h3>
+        <ul class="log muted">
+          <li>DM noise: converter input current (trapezoid for pulsed-input topologies, triangle for boost/PFC) injected across the converter input capacitor. CM noise: switch-node voltage coupled to chassis/PE through C<sub>p</sub>.</li>
+          <li>Each switching harmonic is solved with a full nodal analysis including the artificial network(s), capacitor ESR/ESL, inductor DCR/SRF, CM-choke leakage, and MLCC DC-bias derating. DM and CM contributions are added in magnitude (worst case) per line.</li>
+          <li>Narrow-band harmonics read the same on PK, QP and AV detectors, so the AV limit is used as the design target by default.</li>
+          <li>Layout (loop areas, near-field coupling, cable resonances) is not modelled – keep margin and verify with a pre-compliance scan.</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Part search drawer -->
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-head">
+    <div><h3 id="drTitle">Find parts</h3><p class="muted" id="drSub"></p></div>
+    <button class="btn icon" id="drClose" title="Close">✕</button>
+  </div>
+  <div class="drawer-search">
+    <input id="drKeyword" type="text" spellcheck="false" aria-label="Search keywords">
+    <label class="chk"><input type="checkbox" id="srcLib" checked> Library</label>
+    <label class="chk"><input type="checkbox" id="srcMouser"> Mouser</label>
+    <label class="chk"><input type="checkbox" id="srcDigikey"> DigiKey</label>
+    <button class="btn primary" id="drGo">Search</button>
+  </div>
+  <div id="drMsg" class="drawer-msg"></div>
+  <div class="table-wrap drawer-body"><table class="bom small" id="drTable"></table></div>
+</div>
+
+<!-- Settings -->
+<div class="modal-bg" id="settingsModal" hidden>
+  <div class="modal">
+    <div class="drawer-head"><h3>Distributor API keys</h3><button class="btn icon" data-close>✕</button></div>
+    <p class="muted" id="staticNote" hidden><b>Web version:</b> keys are kept in this browser's local storage and sent only to Mouser / DigiKey (or your proxy).</p>
+    <p class="muted">Keys are stored only on this computer (<code id="cfgPath"></code>). Without keys the built-in library and search links still work.</p>
+    <fieldset>
+      <legend>Mouser Search API</legend>
+      <label>API key <input id="kMouser" type="text" spellcheck="false" autocomplete="off"></label>
+      <p class="hint">Free: sign in at mouser.com → <i>API Hub</i> → <i>Search API</i> → request a key.</p>
+    </fieldset>
+    <fieldset>
+      <legend>DigiKey Product Information API v4</legend>
+      <label>Client ID <input id="kDkId" type="text" spellcheck="false" autocomplete="off"></label>
+      <label>Client secret <input id="kDkSecret" type="password" autocomplete="off"></label>
+      <div class="row2">
+        <label>Site <input id="kDkSite" type="text" maxlength="3"></label>
+        <label>Currency <input id="kDkCur" type="text" maxlength="3"></label>
+      </div>
+      <p class="hint">Free: developer.digikey.com → <i>Organization</i> → create a <b>Production</b> app with the <i>ProductInformation V4</i> API; use its Client ID / Secret.</p>
+    </fieldset>
+    <fieldset id="proxyRow" hidden>
+      <legend>API proxy (web version only)</legend>
+      <label>Proxy URL prefix <input id="kProxy" type="text" spellcheck="false" autocomplete="off" placeholder="https://your-proxy.example.com/?url="></label>
+      <p class="hint">Browsers block direct calls to the Mouser/DigiKey APIs unless the API allows it (CORS). If the searches fail, the <b>desktop app</b> works without restrictions – or route the requests through a proxy <b>you control</b>; the target URL is appended to this prefix. Never use a public proxy with your keys.</p>
+    </fieldset>
+    <label class="chk"><input type="checkbox" id="kStock"> Only show parts in stock</label>
+    <div class="modal-foot">
+      <span id="keyTest" class="muted"></span>
+      <button class="btn" id="btnTestKeys">Test connection</button>
+      <button class="btn primary" id="btnSaveKeys">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<div id="tip" class="tip" hidden></div>
+<input type="file" id="fileOpen" accept=".json,.emif" hidden>
+
+<script src="chart.js"></script>
+<script src="schematic.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

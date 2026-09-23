@@ -1,0 +1,26 @@
+1 ICON "app.ico"
+1 24 "app.manifest"
+1 VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEOS 0x40004
+FILETYPE 0x1
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "EMI Filter Designer"
+      VALUE "FileDescription", "EMI Filter Designer"
+      VALUE "FileVersion", "1.0.0"
+      VALUE "InternalName", "EMIFilterDesigner"
+      VALUE "OriginalFilename", "EMIFilterDesigner.exe"
+      VALUE "ProductName", "EMI Filter Designer"
+      VALUE "ProductVersion", "1.0.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END
