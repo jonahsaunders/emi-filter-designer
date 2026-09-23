@@ -1,0 +1,17 @@
+# build output
+/dist/
+/pages/
+*.wasm
+emifilter
+emifilterdesigner
+*.exe
+!rsrc_windows_amd64.syso
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# local test output
+/tmp/
