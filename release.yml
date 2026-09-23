@@ -1,0 +1,33 @@
+# Push a tag like v1.0.1 to build the Windows app + web version and publish a GitHub Release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: go test ./...
+      - name: Build
+        run: |
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-H windowsgui -s -w" -o dist/EMIFilterDesigner.exe .
+          sh ./build-pages.sh
+          mkdir -p "pkg/EMI Filter Designer"
+          cp dist/EMIFilterDesigner.exe README.md LICENSE "pkg/EMI Filter Designer/"
+          (cd pkg && zip -r ../EMI-Filter-Designer-Windows.zip "EMI Filter Designer")
+          cp pages/index.html index.html
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            EMI-Filter-Designer-Windows.zip
+            index.html
